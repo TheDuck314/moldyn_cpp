@@ -17,7 +17,7 @@ LennardJonesConstantPressureSim::LennardJonesConstantPressureSim(int N, double t
     wall_stiffness = 5;
 
     // place atoms
-    for (int i = 0; i < N; ++i) {
+    /*for (int i = 0; i < N; ++i) {
 	bool collision;
 	int tries = 0;
 	do {
@@ -33,7 +33,27 @@ LennardJonesConstantPressureSim::LennardJonesConstantPressureSim(int N, double t
 	    tries += 1;
 	    assert(tries < 10000);
 	} while (collision);
-    }
+    }*/
+    assert(initial_radius == -1);
+
+    int rowLen = (int)std::ceil(std::sqrt(std::sqrt(3)*N/2));
+    double xSpacing = 1.0;
+    double ySpacing = xSpacing * std::sqrt(3)/2;
+    double cornerOffset = 0.5 * xSpacing * rowLen;
+    double oddRowOffset = xSpacing / 2;
+    int row = 0;
+    int col = 0;
+    for (int i = 0; i < N; ++i) {
+        pos[i].x = col * xSpacing - cornerOffset + (row % 2 == 0 ? 0 : oddRowOffset);
+        pos[i].y = row * ySpacing - cornerOffset;
+        col += 1;
+        if (col == rowLen) {
+            col = 0;
+            row += 1;
+        }
+    }        
+    wall_radius = cornerOffset + xSpacing;
+
 
     SampleVelocitiesFromMaxwellBoltzmann(target_temp);
     
@@ -247,14 +267,14 @@ void LennardJonesConstantPressureSim::ComputeNewVelocities(int iter, double dt)
 void LennardJonesConstantPressureSim::EndStep(int iter, double time)
 {
     // write data
-    if (iter % 2000 == 0) {
+    if (iter % 1000 == 0) {
 	double total_E = total_interatom_PE + total_atom_KE + total_wall_PE + wall_KE + pressure_PE;
 	double temp = MeasureTemperature();
 	
 	
 	FILE *data_file = fopen(data_filename, "a");
-	fprintf(data_file, "%d\t%d\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\n",
-	    N, iter, time, volume, temp, total_E, total_interatom_PE, total_atom_KE, total_wall_PE, wall_KE, pressure_PE);
+	fprintf(data_file, "%d\t%d\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\t%0.8e\n",
+	    N, iter, time, volume, temp, total_E, total_interatom_PE, total_atom_KE, total_wall_PE, wall_KE, pressure_PE, target_temp, pressure);
 	fclose(data_file);
     }
 }
@@ -281,4 +301,20 @@ double LennardJonesConstantPressureSim::MeasureTemperature()
     }
     mean_KE /= N;
     return mean_KE;
+}
+
+void LennardJonesConstantPressureSim::SaveState(const char* filename)
+{
+  FILE *f = fopen(filename, "w");
+  if (!f) {
+    printf("couldn't open %s\n", filename);
+    exit(-1);
+  }
+  fprintf(f, "N\t%d\n", N);
+  fprintf(f, "T\t%e\n", target_temp);
+  fprintf(f, "P\t%e\n", pressure);
+  fprintf(f, "wall\t%e\t%e\n", wall_radius, wall_vel); 
+  for (int i = 0; i < N; ++i) {
+    fprintf(f, "%d\t%e\t%e\t%e\t%e\n", i, pos[i].x, pos[i].y, vel[i].x, vel[i].y);
+  }
 }

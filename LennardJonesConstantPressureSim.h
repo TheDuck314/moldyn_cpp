@@ -20,6 +20,13 @@ public:
     void ComputeNewVelocities(int iter, double dt);
     void EndStep(int iter, double time);    
 
+    void SetParams(double T, double P) {
+      target_temp = T;
+      pressure = P;
+    }
+
+    void SaveState(const char* filename);
+
 private:
     void SampleVelocitiesFromMaxwellBoltzmann(double T);
     double MeasureTemperature();
